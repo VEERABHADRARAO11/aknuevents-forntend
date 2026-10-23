@@ -1,6 +1,6 @@
 import {useEffect,useState} from 'react';
 import {useNavigate,useParams,Link} from 'react-router-dom';
-import {api,err,dl,useApp} from './api';
+import {api,err,dl,useApp,getAssetUrl} from './api';
 const D=s=>{const d=new Date(s+'T00:00');return isNaN(d)?['','']:[d.getDate(),d.toLocaleString('en',{month:'short'})]};
 const img=src=>new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.onerror=()=>r(null);i.src=src});
 async function makePass(r,cfg,name){
@@ -33,7 +33,7 @@ export function Home(){
  <main id="events" className="wrap"><div className="head"><h2>Events</h2><div className="chips">{cats.map(c=><button key={c} className={c===cat?'on':''} onClick={()=>setCat(c)}>{c}</button>)}</div></div>
  {msg&&<div className={'note '+(msg.ok?'':'bad')}>{msg.t}</div>}
  <div className="grid">{list.map(e=><article className="card ev" key={e._id}>
-  <div className="bn">{e.banner?<img src={e.banner} alt=""/>:<div className="ph">{e.category||'Event'}</div>}<div className="dt"><b>{D(e.date)[0]}</b>{D(e.date)[1]}</div>{e.category&&<span className="cat">{e.category}</span>}</div>
+  <div className="bn">{e.banner?<img src={getAssetUrl(e.banner)} alt=""/>:<div className="ph">{e.category||'Event'}</div>}<div className="dt"><b>{D(e.date)[0]}</b>{D(e.date)[1]}</div>{e.category&&<span className="cat">{e.category}</span>}</div>
   <div className="pad"><h3>{e.title}</h3><p className="mut">{e.time} · {e.venue}</p><p>{e.description}</p>
   <div className="row"><span className="mut">{e.seats?Math.max(e.seats-e.taken,0)+' seats left':'Open seating'}</span><Btn e={e}/></div></div></article>)}
  {!list.length&&<p className="mut">No events here yet. Check back soon.</p>}</div></main>
@@ -105,7 +105,7 @@ export function Events(){
      {upcoming.map((e,i)=>(
       <article className={`events-gallery-card${i===0&&upcoming.length>2?' featured':''}`} key={e._id} onClick={()=>setSelected(e)}>
        <div className="events-gallery-img">
-        {e.banner?<img src={e.banner} alt={e.title}/>:<div className="events-gallery-ph"><span>{e.category||'Event'}</span></div>}
+        {e.banner?<img src={getAssetUrl(e.banner)} alt={e.title}/>:<div className="events-gallery-ph"><span>{e.category||'Event'}</span></div>}
         <div className="events-gallery-overlay">
          <span className="events-gallery-view">View Details</span>
         </div>
@@ -140,7 +140,7 @@ export function Events(){
      {completed.map(e=>(
       <article className="events-gallery-card past" key={e._id} onClick={()=>setSelected(e)}>
        <div className="events-gallery-img">
-        {e.banner?<img src={e.banner} alt={e.title}/>:<div className="events-gallery-ph"><span>{e.category||'Event'}</span></div>}
+        {e.banner?<img src={getAssetUrl(e.banner)} alt={e.title}/>:<div className="events-gallery-ph"><span>{e.category||'Event'}</span></div>}
         <div className="events-gallery-overlay">
          <span className="events-gallery-view">View Details</span>
         </div>
@@ -173,7 +173,7 @@ export function Events(){
    <div className="events-detail-modal" onClick={e=>e.stopPropagation()}>
     <button className="events-detail-close" onClick={()=>setSelected(null)}>✕</button>
     <div className="events-detail-banner">
-     {selected.banner?<img src={selected.banner} alt={selected.title}/>:<div className="events-gallery-ph" style={{height:260}}><span>{selected.category||'Event'}</span></div>}
+     {selected.banner?<img src={getAssetUrl(selected.banner)} alt={selected.title}/>:<div className="events-gallery-ph" style={{height:260}}><span>{selected.category||'Event'}</span></div>}
      {selected.category&&<span className="events-gallery-cat" style={{top:16,right:16,fontSize:'.9rem',padding:'5px 16px'}}>{selected.category}</span>}
     </div>
     <div className="events-detail-body">
@@ -237,7 +237,7 @@ export function Gallery({isSection}){
     <div className="card ev" key={item._id||item.id} style={{display:'flex',flexDirection:'column'}}>
      <div className="bn" style={{height:'220px'}}>
       {(item.image||item.img)?(
-       <img src={item.image||item.img} alt={item.title} style={{height:'220px',width:'100%',objectFit:'cover'}} onError={e=>{e.target.style.display='none'}}/>
+       <img src={getAssetUrl(item.image||item.img)} alt={item.title} style={{height:'220px',width:'100%',objectFit:'cover'}} onError={e=>{e.target.style.display='none'}}/>
       ):(
        <div className="ph">{item.category||item.cat||'Campus'}</div>
       )}

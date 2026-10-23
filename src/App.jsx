@@ -8,7 +8,7 @@ import {
   Navigate
 } from 'react-router-dom';
 
-import { api, Ctx, useApp } from './api';
+import { api, Ctx, useApp, getAssetUrl } from './api';
 import {
   Home,
   Events,
@@ -199,7 +199,13 @@ export default function App() {
 
   const load = () =>
     api.get('/settings').then(response => {
-      setCfg(response.data);
+      const data = response.data || {};
+      setCfg({
+        ...data,
+        logo: getAssetUrl(data.logo),
+        hero: getAssetUrl(data.hero),
+        signature: getAssetUrl(data.signature)
+      });
     }).catch(error => {
       console.error('Settings loading failed:', error.message);
     });
