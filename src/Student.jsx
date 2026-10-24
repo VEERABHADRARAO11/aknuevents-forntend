@@ -2,23 +2,202 @@ import {useEffect,useState} from 'react';
 import {useNavigate,useParams,Link} from 'react-router-dom';
 import {api,err,dl,useApp,getAssetUrl} from './api';
 const D=s=>{const d=new Date(s+'T00:00');return isNaN(d)?['','']:[d.getDate(),d.toLocaleString('en',{month:'short'})]};
-const img=src=>new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.onerror=()=>r(null);i.src=src});
-async function makePass(r,cfg,name){
- const c=document.createElement('canvas');c.width=800;c.height=1200;const x=c.getContext('2d'),mid=400;
- x.fillStyle='#fff';x.fillRect(0,0,800,1200);x.fillStyle='#0b1d3a';x.fillRect(0,0,800,230);x.fillStyle='#f2b134';x.fillRect(0,230,800,10);
- const[lg,qr]=await Promise.all([img(cfg.logo),img(r.qr)]);
- if(lg)x.drawImage(lg,40,40,lg.width*(150/lg.height),150);
- x.fillStyle='#fff';x.font='700 34px sans-serif';x.fillText(cfg.collegeName,230,100,530);x.fillStyle='#f2b134';x.font='24px sans-serif';x.fillText(cfg.address||'',230,145,530);
- x.fillStyle='#0b1d3a';x.font='700 48px sans-serif';x.fillText(r.event.title,40,320,720);
- x.fillStyle='#5d6785';x.font='28px sans-serif';x.fillText(`${r.event.date}  |  ${r.event.time}`,40,372,720);x.fillText(r.event.venue||'',40,414,720);
- x.fillStyle='#0b1d3a';x.font='700 32px sans-serif';x.fillText(name,40,478,720);
- if(qr)x.drawImage(qr,mid-250,520,500,500);
- x.textAlign='center';x.fillStyle='#5d6785';x.font='26px sans-serif';x.fillText('Ticket ID',mid,1070);
- x.fillStyle='#0b1d3a';x.font='700 66px monospace';x.fillText(r.ticket,mid,1140);
- const a=document.createElement('a');a.href=c.toDataURL('image/png');a.download=`pass-${r.ticket}.png`;a.click()}
-export function AuthShell({title,sub,children}){const{cfg}=useApp();
- return <div className="split"><div className="side" style={{backgroundImage:`linear-gradient(160deg,rgba(11,29,58,.8),rgba(11,29,58,.96)),url(${cfg.hero})`}}><img src={cfg.logo} alt=""/><h2>{cfg.collegeName}</h2><p>{cfg.address}</p></div>
- <div className="formside"><div className="fbox"><h1>{title}</h1><p className="mut">{sub}</p>{children}</div></div></div>}
+const img = (src) =>
+  new Promise((resolve) => {
+    if (!src) return resolve(null);
+    const i = new Image();
+    if (!src.startsWith('data:') && !src.startsWith('blob:')) {
+      i.crossOrigin = 'anonymous';
+    }
+    i.onload = () => resolve(i);
+    i.onerror = () => {
+      const retry = new Image();
+      retry.onload = () => resolve(retry);
+      retry.onerror = () => resolve(null);
+      retry.src = src;
+    };
+    i.src = src;
+  });
+
+async function makePass(r, cfg, name) {
+  try {
+    const c = document.createElement('canvas');
+    c.width = 800;
+    c.height = 1200;
+    const x = c.getContext('2d'), mid = 400;
+
+    // Background & Top Banner
+    x.fillStyle = '#ffffff';
+    x.fillRect(0, 0, 800, 1200);
+    x.fillStyle = '#0b1d3a';
+    x.fillRect(0, 0, 800, 230);
+    x.fillStyle = '#f2b134';
+    x.fillRect(0, 230, 800, 10);
+
+    const logoSrc = cfg?.logo || '/assets/college-logo.png';
+    const [lg, qr] = await Promise.all([img(logoSrc), img(r.qr)]);
+
+    let logoDrawn = false;
+    if (lg) {
+      try {
+        const aspect = lg.width / lg.height;
+        x.drawImage(lg, 40, 40, Math.min(150 * aspect, 160), 150);
+        logoDrawn = true;
+      } catch (e) {
+        console.warn('Canvas logo draw warning:', e);
+      }
+    }
+
+    const textLeft = logoDrawn ? 220 : 40;
+    x.fillStyle = '#ffffff';
+    x.font = '700 32px sans-serif';
+    x.fillText(cfg?.collegeName || 'Adikavi Nannaya University', textLeft, 100, 760 - textLeft);
+
+    x.fillStyle = '#f2b134';
+    x.font = '22px sans-serif';
+    x.fillText(cfg?.address || 'Rajamahendravaram, Andhra Pradesh', textLeft, 145, 760 - textLeft);
+
+    x.fillStyle = '#0b1d3a';
+    x.font = '700 44px sans-serif';
+    x.fillText(r.event?.title || 'Event Pass', 40, 315, 720);
+
+    x.fillStyle = '#5d6785';
+    x.font = '26px sans-serif';
+    x.fillText(`${r.event?.date || ''}  |  ${r.event?.time || ''}`, 40, 368, 720);
+    x.fillText(r.event?.venue || '', 40, 410, 720);
+
+    x.fillStyle = '#0b1d3a';
+    x.font = '700 32px sans-serif';
+    x.fillText(name || 'Student', 40, 474, 720);
+
+    if (qr) {
+      x.drawImage(qr, mid - 240, 520, 480, 480);
+    } else {
+      x.strokeStyle = '#dde3f0';
+      x.lineWidth = 3;
+      x.strokeRect(mid - 240, 520, 480, 480);
+      x.fillStyle = '#0b1d3a';
+      x.font = '700 28px sans-serif';
+      x.textAlign = 'center';
+      x.fillText('AKNU EVENT PASS', mid, 760);
+      x.textAlign = 'left';
+    }
+
+    x.textAlign = 'center';
+    x.fillStyle = '#5d6785';
+    x.font = '24px sans-serif';
+    x.fillText('Ticket ID', mid, 1070);
+
+    x.fillStyle = '#0b1d3a';
+    x.font = '700 58px monospace';
+    x.fillText(r.ticket || '', mid, 1140);
+
+    const filename = `pass-${r.ticket || 'event'}.png`;
+
+    if (c.toBlob) {
+      c.toBlob((blob) => {
+        if (blob) {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          }, 3000);
+        } else {
+          const a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = c.toDataURL('image/png');
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => document.body.removeChild(a), 2000);
+        }
+      }, 'image/png');
+    } else {
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = c.toDataURL('image/png');
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => document.body.removeChild(a), 2000);
+    }
+  } catch (err) {
+    console.error('Error generating pass:', err);
+    try {
+      const c2 = document.createElement('canvas');
+      c2.width = 800;
+      c2.height = 1200;
+      const x2 = c2.getContext('2d'), mid = 400;
+      x2.fillStyle = '#ffffff';
+      x2.fillRect(0, 0, 800, 1200);
+      x2.fillStyle = '#0b1d3a';
+      x2.fillRect(0, 0, 800, 230);
+      x2.fillStyle = '#f2b134';
+      x2.fillRect(0, 230, 800, 10);
+      x2.fillStyle = '#ffffff';
+      x2.font = '700 36px sans-serif';
+      x2.fillText(cfg?.collegeName || 'Adikavi Nannaya University', 40, 100, 720);
+      x2.fillStyle = '#f2b134';
+      x2.font = '24px sans-serif';
+      x2.fillText(cfg?.address || 'Rajamahendravaram, Andhra Pradesh', 40, 145, 720);
+      x2.fillStyle = '#0b1d3a';
+      x2.font = '700 44px sans-serif';
+      x2.fillText(r.event?.title || 'Event Pass', 40, 315, 720);
+      x2.fillStyle = '#5d6785';
+      x2.font = '26px sans-serif';
+      x2.fillText(`${r.event?.date || ''}  |  ${r.event?.time || ''}`, 40, 368, 720);
+      x2.fillText(r.event?.venue || '', 40, 410, 720);
+      x2.fillStyle = '#0b1d3a';
+      x2.font = '700 32px sans-serif';
+      x2.fillText(name || 'Student', 40, 474, 720);
+      const qrImg = await img(r.qr);
+      if (qrImg) x2.drawImage(qrImg, mid - 240, 520, 480, 480);
+      x2.textAlign = 'center';
+      x2.fillStyle = '#5d6785';
+      x2.font = '24px sans-serif';
+      x2.fillText('Ticket ID', mid, 1070);
+      x2.fillStyle = '#0b1d3a';
+      x2.font = '700 58px monospace';
+      x2.fillText(r.ticket || '', mid, 1140);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = c2.toDataURL('image/png');
+      a.download = `pass-${r.ticket || 'event'}.png`;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => document.body.removeChild(a), 2000);
+    } catch (e2) {
+      alert('Could not download pass image. Please take a screenshot of your ticket QR code.');
+    }
+  }
+}
+
+export function AuthShell({title,sub,children}){
+ const{cfg}=useApp();
+ return <div className="split">
+  <div className="side" style={{backgroundImage:`linear-gradient(160deg,rgba(11,29,58,.8),rgba(11,29,58,.96)),url(${cfg?.hero || '/assets/college-gate.png'})`}}>
+   <img
+     src={cfg?.logo || '/assets/college-logo.png'}
+     alt={cfg?.collegeName || 'AKNU'}
+     onError={(e) => {
+       if (e.target.src !== window.location.origin + '/assets/college-logo.png') {
+         e.target.src = '/assets/college-logo.png';
+       }
+     }}
+   />
+   <h2>{cfg?.collegeName || 'Adikavi Nannaya University'}</h2>
+   <p>{cfg?.address || 'Rajamahendravaram, Andhra Pradesh'}</p>
+  </div>
+  <div className="formside"><div className="fbox"><h1>{title}</h1><p className="mut">{sub}</p>{children}</div></div>
+ </div>;
+}
+
 export function Home(){
  const{cfg,user}=useApp(),nav=useNavigate(),[ev,setEv]=useState([]),[mine,setMine]=useState([]),[msg,setMsg]=useState(null),[cat,setCat]=useState('All');
  const load=()=>api.get('/events').then(r=>setEv(r.data));useEffect(()=>{load()},[]);
@@ -27,8 +206,8 @@ export function Home(){
  const next=ev.filter(e=>!e.completed).sort((a,b)=>a.date.localeCompare(b.date))[0],cats=['All',...new Set(ev.map(e=>e.category).filter(Boolean))],list=ev.filter(e=>cat==='All'||e.category===cat);
  const Btn=({e})=>mine.includes(e._id)?<button className="btn" disabled>Registered</button>:<button className="btn" disabled={e.completed} onClick={()=>reg(e)}>{e.completed?'Completed':'Register'}</button>;
  return <>
- <section className="hero" style={{backgroundImage:`linear-gradient(90deg,rgba(11,29,58,.95) 10%,rgba(11,29,58,.4) 75%),url(${cfg.hero})`}}><div className="hero-in">
-  <div><h1>{cfg.collegeName}</h1><p>Events, fests and competitions. Register once, walk in with a QR pass, and collect your certificate online.</p><Link to="/events" className="btn big">Browse events</Link></div>
+ <section className="hero" style={{backgroundImage:`linear-gradient(90deg,rgba(11,29,58,.95) 10%,rgba(11,29,58,.4) 75%),url(${cfg?.hero || '/assets/college-gate.png'})`}}><div className="hero-in">
+  <div><h1>{cfg?.collegeName || 'Adikavi Nannaya University'}</h1><p>Events, fests and competitions. Register once, walk in with a QR pass, and collect your certificate online.</p><Link to="/events" className="btn big">Browse events</Link></div>
   {next&&<aside className="next"><span>Happening next</span><h3>{next.title}</h3><p>{D(next.date)[0]} {D(next.date)[1]} · {next.time}<br/>{next.venue}</p><Btn e={next}/></aside>}</div></section>
  <main id="events" className="wrap"><div className="head"><h2>Events</h2><div className="chips">{cats.map(c=><button key={c} className={c===cat?'on':''} onClick={()=>setCat(c)}>{c}</button>)}</div></div>
  {msg&&<div className={'note '+(msg.ok?'':'bad')}>{msg.t}</div>}
@@ -383,6 +562,18 @@ export function Dashboard({ defaultTab = 'all' }){
  const [pForm, setPForm] = useState({ name: user?.name || '', currentPassword: '', newPassword: '' });
  const [pMsg, setPMsg] = useState(null);
  const [pBusy, setPBusy] = useState(false);
+ const [downloadingId, setDownloadingId] = useState(null);
+
+ const handleDownloadPass = async (r) => {
+   setDownloadingId(r._id);
+   try {
+     await makePass(r, cfg, user?.name);
+   } catch (e) {
+     console.error(e);
+   } finally {
+     setTimeout(() => setDownloadingId(null), 1500);
+   }
+ };
 
  useEffect(() => {
    setTab(defaultTab);
@@ -470,9 +661,13 @@ export function Dashboard({ defaultTab = 'all' }){
                  <span className={'pill ' + (r.attended ? 'ok' : '')}>
                    {r.attended ? 'Attended' : 'Not checked in yet'}
                  </span>
-                 <button className="btn" onClick={() => makePass(r, cfg, user.name)}>
-                   Download pass
-                 </button>
+                 <button
+                    className="btn"
+                    disabled={downloadingId === r._id}
+                    onClick={() => handleDownloadPass(r)}
+                  >
+                    {downloadingId === r._id ? 'Generating pass...' : 'Download pass'}
+                  </button>
                </div>
                <div className="tk-qr">
                  <img src={r.qr} alt="QR pass" />

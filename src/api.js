@@ -70,6 +70,7 @@ export const getServerUrl = () => {
 export const getAssetUrl = (url) => {
   if (!url) return '';
   if (/^https?:\/\/|^data:|^blob:/i.test(url)) return url;
+  if (url.startsWith('/assets/')) return url;
   const server = getServerUrl();
   if (server && url.startsWith('/')) {
     return `${server}${url}`;
