@@ -4,12 +4,78 @@ import {Html5QrcodeScanner} from 'html5-qrcode';
 import {api,err,dl,useApp} from './api';
 import {AuthShell} from './Student';
 export function AdminLogin(){
- const{login}=useApp(),nav=useNavigate(),[f,setF]=useState({id:'',password:''}),[e,setE]=useState('');
- const go=async()=>{try{const{data}=await api.post('/auth/admin',f);login(data);nav('/admin')}catch(x){setE(err(x))}};
- return <AuthShell title="Admin login" sub="Manage events, attendance and certificates.">
- <input placeholder="User ID" value={f.id} onChange={x=>setF({...f,id:x.target.value})}/>
- <input placeholder="Password" type="password" value={f.password} onChange={x=>setF({...f,password:x.target.value})} onKeyDown={x=>x.key==='Enter'&&go()}/>
- {e&&<div className="note bad">{e}</div>}<button className="btn big" onClick={go}>Login</button></AuthShell>}
+ const{login}=useApp(),nav=useNavigate(),[f,setF]=useState({id:'',password:''}),[e,setE]=useState(''),[loading,setLoading]=useState(false),[success,setSuccess]=useState(false);
+ const handleSubmit = async (ev) => {
+   if (ev) ev.preventDefault();
+   if (loading || success) return;
+   setE('');
+   setLoading(true);
+   try {
+     const { data } = await api.post('/auth/admin', f);
+     setSuccess(true);
+     login(data);
+     setTimeout(() => {
+       nav('/admin');
+     }, 850);
+   } catch (x) {
+     setE(err(x));
+     setLoading(false);
+   }
+ };
+ return (
+   <AuthShell title="Admin login" sub="Manage events, attendance and certificates.">
+     {success && (
+       <div className="auth-transition-overlay">
+         <div className="auth-transition-box">
+           <div className="auth-spinner" />
+           <h3>Admin Authenticated!</h3>
+           <p className="mut">Opening Admin Console...</p>
+         </div>
+       </div>
+     )}
+     <form onSubmit={handleSubmit} style={{display:'flex',flexDirection:'column',gap:'14px',width:'100%'}}>
+       <div>
+         <label style={{display:'block',marginBottom:'4px',fontWeight:600,fontSize:'.9rem'}}>Admin User ID</label>
+         <input
+           required
+           autoFocus
+           placeholder="Admin User ID"
+           value={f.id}
+           onChange={x => setF({...f, id: x.target.value})}
+           disabled={loading || success}
+         />
+       </div>
+       <div>
+         <label style={{display:'block',marginBottom:'4px',fontWeight:600,fontSize:'.9rem'}}>Password</label>
+         <input
+           required
+           type="password"
+           placeholder="Password"
+           value={f.password}
+           onChange={x => setF({...f, password: x.target.value})}
+           disabled={loading || success}
+         />
+       </div>
+       {e && <div className="note bad" style={{margin:'4px 0'}}>{e}</div>}
+       <button
+         type="submit"
+         className="btn big auth-submit-btn"
+         disabled={loading || success}
+         style={{marginTop:'8px'}}
+       >
+         {loading ? (
+           <>
+             <span className="btn-spinner" />
+             <span>Verifying...</span>
+           </>
+         ) : (
+           <span>Login to Admin</span>
+         )}
+       </button>
+     </form>
+   </AuthShell>
+ );
+}
 const Pick=({ev,v,set,allLabel})=><select value={v} onChange={x=>set(x.target.value)}>{allLabel&&<option value="all">{allLabel}</option>}{!allLabel&&<option value="">Select an event</option>}{ev.map(e=><option key={e._id} value={e._id}>{e.title}</option>)}</select>;
 function Brand({close}){
  const{cfg,load}=useApp(),[f,setF]=useState({collegeName:cfg.collegeName||'',address:cfg.address||'',signatory:cfg.signatory||'',designation:cfg.designation||'',contactName:cfg.contactName||'',contactEmail:cfg.contactEmail||'',contactPhone:cfg.contactPhone||''}),[fl,setFl]=useState({}),[loading,setLoading]=useState(false);
@@ -167,7 +233,7 @@ function Dash(){
    <span className="stat-label">{item.label}</span>
   </div>)}</div>
 
-  <div style={{display:'grid',gridTemplateColumns:'1fr 320px',gap:'24px',marginTop:'10px'}}>
+  <div className="adm-charts-grid">
    {/* Bar Chart */}
    <div className="card pad" style={{minHeight:'320px'}}>
     <h3 style={{margin:'0 0 6px',fontSize:'1.15rem'}}>Registrations vs Attendance</h3>
@@ -752,7 +818,7 @@ const NAV_ITEMS = [
 ];
 
 export function Admin(){
- const{cfg,admin,logoutAdmin}=useApp(),nav=useNavigate(),[tab,setTab]=useState('dash'),[ev,setEv]=useState([]),[gallery,setGallery]=useState([]),[sel,setSel]=useState('all'),[brand,setBrand]=useState(false),[contactModal,setContactModal]=useState(false),[profile,setProfile]=useState(false),[addModal,setAddModal]=useState(false),[addGalleryModal,setAddGalleryModal]=useState(false);
+ const{cfg,admin,logoutAdmin}=useApp(),nav=useNavigate(),[tab,setTab]=useState('dash'),[ev,setEv]=useState([]),[gallery,setGallery]=useState([]),[sel,setSel]=useState('all'),[brand,setBrand]=useState(false),[contactModal,setContactModal]=useState(false),[profile,setProfile]=useState(false),[addModal,setAddModal]=useState(false),[addGalleryModal,setAddGalleryModal]=useState(false),[sidebarOpen,setSidebarOpen]=useState(false);
  const reload=()=>{api.get('/events').then(r=>setEv(r.data)).catch(()=>{});api.get('/gallery').then(r=>setGallery(r.data)).catch(()=>{})};useEffect(()=>{reload()},[tab]);
  useEffect(()=>{if(!admin)nav('/admin/login')},[admin]);
  const curLabel=NAV_ITEMS.find(t=>t.key===tab)?.label||'Dashboard';
@@ -789,22 +855,47 @@ export function Admin(){
  };
 
  return <div className="adm">
-  <aside>
-   <div className="brand"><img src={cfg.logo} alt=""/><b>{cfg.collegeName}</b></div>
-   {NAV_ITEMS.map(item=>(
-    <button key={item.key} className={tab===item.key?'on':''} onClick={()=>setTab(item.key)}>
-     {item.icon}
-     <span>{item.label}</span>
-    </button>
-   ))}
-   <div style={{marginTop:'auto',display:'flex',flexDirection:'column',gap:'4px'}}>
-    <button onClick={()=>setContactModal(true)}>
+  {/* Mobile Sidebar Backdrop */}
+  <div
+    className={`adm-sidebar-backdrop ${sidebarOpen ? 'open' : ''}`}
+    onClick={() => setSidebarOpen(false)}
+    aria-hidden="true"
+  />
+
+  <aside className={`adm-sidebar ${sidebarOpen ? 'open' : ''}`}>
+   <div className="adm-sidebar-brand-row">
+     <div className="brand">
+       <img src={cfg.logo || '/assets/college-logo.png'} alt=""/>
+       <b>{cfg.collegeName || 'AKNU Admin'}</b>
+     </div>
+     <button
+       className="adm-sidebar-close-btn"
+       onClick={() => setSidebarOpen(false)}
+       aria-label="Close sidebar"
+     >
+       ✕
+     </button>
+   </div>
+   <div className="adm-sidebar-items">
+     {NAV_ITEMS.map(item=>(
+      <button
+        key={item.key}
+        className={tab===item.key?'on':''}
+        onClick={()=>{setTab(item.key);setSidebarOpen(false);}}
+      >
+       {item.icon}
+       <span>{item.label}</span>
+      </button>
+     ))}
+   </div>
+   <div className="adm-sidebar-bottom">
+    <button onClick={()=>{setContactModal(true);setSidebarOpen(false);}}>
      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
      </svg>
      <span>Contact details</span>
     </button>
-    <button onClick={()=>setBrand(true)}>
+    <button onClick={()=>{setBrand(true);setSidebarOpen(false);}}>
      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
       <polyline points="9 22 9 12 15 12 15 22"/>
@@ -824,10 +915,24 @@ export function Admin(){
 
   <section>
    <header className="adm-header">
-    <div className="adm-crumb">
-     <span className="adm-crumb-root">Admin Portal</span>
-     <span className="adm-crumb-sep">/</span>
-     <span className="adm-crumb-active">{curLabel}</span>
+    <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
+     <button
+       className="adm-mobile-hamburger"
+       onClick={()=>setSidebarOpen(true)}
+       aria-label="Open Admin Menu"
+       title="Open Menu"
+     >
+       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="3" y1="12" x2="21" y2="12"/>
+        <line x1="3" y1="6" x2="21" y2="6"/>
+        <line x1="3" y1="18" x2="21" y2="18"/>
+       </svg>
+     </button>
+     <div className="adm-crumb">
+      <span className="adm-crumb-root">Admin</span>
+      <span className="adm-crumb-sep">/</span>
+      <span className="adm-crumb-active">{curLabel}</span>
+     </div>
     </div>
 
     <div className="adm-header-right">
@@ -843,6 +948,20 @@ export function Admin(){
      </button>
     </div>
    </header>
+
+   {/* Quick mobile horizontal tabs */}
+   <div className="adm-mobile-quick-nav">
+     {NAV_ITEMS.map(item=>(
+       <button
+         key={item.key}
+         className={`adm-quick-pill ${tab===item.key?'active':''}`}
+         onClick={()=>setTab(item.key)}
+       >
+         {item.icon}
+         <span>{item.label}</span>
+       </button>
+     ))}
+   </div>
 
    <div className="adm-body">
     <div className="top">

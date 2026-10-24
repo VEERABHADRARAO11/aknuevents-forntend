@@ -542,15 +542,108 @@ export function Contact({isSection}){
  </div>;
 }
 function Auth({reg}){
- const{login}=useApp(),nav=useNavigate(),[f,setF]=useState({name:'',email:'',password:''}),[e,setE]=useState('');
- const go=async()=>{try{const{data}=await api.post(reg?'/auth/register':'/auth/login',f);login(data);nav('/passes')}catch(x){setE(err(x))}};
- const set=k=>v=>setF({...f,[k]:v.target.value});
- return <AuthShell title={reg?'Create your account':'Welcome back'} sub={reg?'Register to join events and get your QR pass.':'Login to register for events and download certificates.'}>
- {reg&&<input placeholder="Full name" value={f.name} onChange={set('name')}/>}
- <input placeholder="Email" type="email" value={f.email} onChange={set('email')}/>
- <input placeholder="Password" type="password" value={f.password} onChange={set('password')} onKeyDown={x=>x.key==='Enter'&&go()}/>
- {e&&<div className="note bad">{e}</div>}<button className="btn big" onClick={go}>{reg?'Register':'Login'}</button>
- <p className="mut">{reg?<>Already have an account? <Link to="/login">Login</Link></>:<>New here? <Link to="/register">Create an account</Link></>}</p></AuthShell>}
+ const{login}=useApp(),nav=useNavigate(),[f,setF]=useState({name:'',email:'',password:''}),[e,setE]=useState(''),[loading,setLoading]=useState(false),[success,setSuccess]=useState(false);
+ const handleSubmit = async (ev) => {
+   if (ev) ev.preventDefault();
+   if (loading || success) return;
+   setE('');
+   setLoading(true);
+   try {
+     const { data } = await api.post(reg ? '/auth/register' : '/auth/login', f);
+     setSuccess(true);
+     login(data);
+     setTimeout(() => {
+       nav('/passes');
+     }, 850);
+   } catch (x) {
+     setE(err(x));
+     setLoading(false);
+   }
+ };
+ const set = (k) => (v) => setF({ ...f, [k]: v.target.value });
+
+ return (
+   <AuthShell
+     title={reg ? 'Create your account' : 'Welcome back'}
+     sub={reg ? 'Register to join events and get your QR pass.' : 'Login to register for events and download certificates.'}
+   >
+     {success && (
+       <div className="auth-transition-overlay">
+         <div className="auth-transition-box">
+           <div className="auth-spinner" />
+           <h3>{reg ? 'Account Created!' : 'Login Successful!'}</h3>
+           <p className="mut">Loading your passes dashboard...</p>
+         </div>
+       </div>
+     )}
+
+     <form onSubmit={handleSubmit} style={{display:'flex',flexDirection:'column',gap:'14px',width:'100%'}}>
+       {reg && (
+         <div>
+           <label style={{display:'block',marginBottom:'4px',fontWeight:600,fontSize:'.9rem'}}>Full Name</label>
+           <input
+             required
+             autoFocus
+             placeholder="e.g. Veera Bhadra Rao"
+             value={f.name}
+             onChange={set('name')}
+             disabled={loading || success}
+           />
+         </div>
+       )}
+       <div>
+         <label style={{display:'block',marginBottom:'4px',fontWeight:600,fontSize:'.9rem'}}>Email Address</label>
+         <input
+           required
+           type="email"
+           autoFocus={!reg}
+           placeholder="name@email.com"
+           value={f.email}
+           onChange={set('email')}
+           disabled={loading || success}
+         />
+       </div>
+       <div>
+         <label style={{display:'block',marginBottom:'4px',fontWeight:600,fontSize:'.9rem'}}>Password</label>
+         <input
+           required
+           type="password"
+           placeholder="Enter your password"
+           value={f.password}
+           onChange={set('password')}
+           disabled={loading || success}
+         />
+       </div>
+
+       {e && <div className="note bad" style={{margin:'4px 0'}}>{e}</div>}
+
+       <button
+         type="submit"
+         className="btn big auth-submit-btn"
+         disabled={loading || success}
+         style={{marginTop:'8px'}}
+       >
+         {loading ? (
+           <>
+             <span className="btn-spinner" />
+             <span>{reg ? 'Creating account...' : 'Signing in...'}</span>
+           </>
+         ) : (
+           <span>{reg ? 'Register' : 'Login'}</span>
+         )}
+       </button>
+     </form>
+
+     <p className="mut" style={{marginTop:'14px'}}>
+       {reg ? (
+         <>Already have an account? <Link to="/login" style={{fontWeight:700}}>Login</Link></>
+       ) : (
+         <>New here? <Link to="/register" style={{fontWeight:700}}>Create an account</Link></>
+       )}
+     </p>
+   </AuthShell>
+ );
+}
 export const Login=()=><Auth/>;export const Register=()=><Auth reg/>;
 
 export function Dashboard({ defaultTab = 'all' }){
